@@ -16,7 +16,7 @@
 :: under the License.
 
 :: Windows launcher script for Gremlin Server
-@echo on
+@echo off
 SETLOCAL EnableDelayedExpansion
 set work=%CD%
 
