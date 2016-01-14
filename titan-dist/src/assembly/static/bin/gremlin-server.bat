@@ -1,13 +1,69 @@
-:: Windows launcher script for Gremlin Server
-@echo off
+:: Licensed to the Apache Software Foundation (ASF) under one
+:: or more contributor license agreements.  See the NOTICE file
+:: distributed with this work for additional information
+:: regarding copyright ownership.  The ASF licenses this file
+:: to you under the Apache License, Version 2.0 (the
+:: "License"); you may not use this file except in compliance
+:: with the License.  You may obtain a copy of the License at
+::
+::   http://www.apache.org/licenses/LICENSE-2.0
+::
+:: Unless required by applicable law or agreed to in writing,
+:: software distributed under the License is distributed on an
+:: "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+:: KIND, either express or implied.  See the License for the
+:: specific language governing permissions and limitations
+:: under the License.
 
+:: Windows launcher script for Gremlin Server
+@echo on
+SETLOCAL EnableDelayedExpansion
 set work=%CD%
 
 if [%work:~-3%]==[bin] cd ..
 
 set LIBDIR=lib
+set EXT=ext
+set EXTDIR=%EXT%/*
+
+cd ext
+
+FOR /D /r %%i in (*) do (
+    set EXTDIR=!EXTDIR!;%%i/*
+)
+
+cd ..
+
+:: put slf4j-log4j12 first because of conflict with logback
+set CP=%LIBDIR%/slf4j-log4j12-1.7.5.jar;%LIBDIR%/*;%EXTDIR%;%CLASSPATH%
 
 set JAVA_OPTIONS=-Xms32m -Xmx512m -javaagent:%LIBDIR%/jamm-0.3.0.jar
 
+if "%1" == "" goto server
+if "%1" == "-i" goto install
+
+:server
 :: Launch the application
-java -Dlog4j.configuration=../conf/log4j-server.properties %JAVA_OPTIONS% %JAVA_ARGS% -cp %LIBDIR%/*; org.apache.tinkerpop.gremlin.server.GremlinServer %*
+
+shift
+if "%1"=="" (
+  set GREMLIN_SERVER_YAML=conf/gremlin-server/gremlin-server.yaml
+)
+
+java -Dlog4j.configuration=conf/gremlin-server/log4j-server.properties %JAVA_OPTIONS% %JAVA_ARGS% -cp %CP% org.apache.tinkerpop.gremlin.server.GremlinServer %GREMLIN_SERVER_YAML%
+
+:install
+:: Install a plugin
+
+set GRP_ART_VER=
+shift
+
+:loop1
+if "%1"=="" goto after_loop
+set GRP_ART_VER=%GRP_ART_VER% %1
+shift
+goto loop1
+
+:after_loop
+
+java -Dlog4j.configuration=conf/log4j-server.properties %JAVA_OPTIONS% %JAVA_ARGS% -cp %CP% org.apache.tinkerpop.gremlin.server.util.GremlinServerInstall %GRP_ART_VER%

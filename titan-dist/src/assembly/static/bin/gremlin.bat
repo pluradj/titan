@@ -1,21 +1,46 @@
+:: Licensed to the Apache Software Foundation (ASF) under one
+:: or more contributor license agreements.  See the NOTICE file
+:: distributed with this work for additional information
+:: regarding copyright ownership.  The ASF licenses this file
+:: to you under the Apache License, Version 2.0 (the
+:: "License"); you may not use this file except in compliance
+:: with the License.  You may obtain a copy of the License at
+::
+::   http://www.apache.org/licenses/LICENSE-2.0
+::
+:: Unless required by applicable law or agreed to in writing,
+:: software distributed under the License is distributed on an
+:: "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+:: KIND, either express or implied.  See the License for the
+:: specific language governing permissions and limitations
+:: under the License.
+
 :: Windows launcher script for Gremlin Console
 
 @echo off
+SETLOCAL EnableDelayedExpansion
+set work=%CD%
 
-::cd ..\lib
+if [%work:~-3%]==[bin] cd ..
 
-::set LIBDIR=%CD%
+set LIBDIR=lib
+set EXT=ext
+set EXTDIR=%EXT%/*
 
-set LIBDIR=..\lib
+cd ext
 
-set OLD_CLASSPATH=%CLASSPATH%
-set CP=
+FOR /D /r %%i in (*) do (
+    set EXTDIR=!EXTDIR!;%%i/*
+)
 
-for %%i in (%LIBDIR%\*.jar) do call :concatsep %%i
+cd ..
 
-:: cd ..\..\..\
+:: put slf4j-log4j12 first because of conflict with logback
+set CP=%LIBDIR%/slf4j-log4j12-1.7.5.jar;%LIBDIR%/*;%EXTDIR%;%CLASSPATH%
+set GREMLIN_LOG_LEVEL=WARN
 
-set JAVA_OPTIONS=-Xms32m -Xmx512m -javaagent:%LIBDIR%\jamm-0.3.0.jar
+:: workaround for https://issues.apache.org/jira/browse/GROOVY-6453
+set JAVA_OPTIONS=-Xms32m -Xmx512m -Djline.terminal=none -Dtinkerpop.ext=%EXT% -Dlog4j.configuration=conf/log4j-console.properties -Dgremlin.log4j.level=%GREMLIN_LOG_LEVEL% -javaagent:%LIBDIR%/jamm-0.3.0.jar
 
 :: Launch the application
 
@@ -25,10 +50,8 @@ if "%1" == "-v" goto version
 
 :console
 
-set CLASSPATH=%CP%;%OLD_CLASSPATH%
-java %JAVA_OPTIONS% %JAVA_ARGS% org.apache.tinkerpop.gremlin.console.Console %*
+java %JAVA_OPTIONS% %JAVA_ARGS% -cp %CP% org.apache.tinkerpop.gremlin.console.Console %*
 
-set CLASSPATH=%OLD_CLASSPATH%
 goto :eof
 
 :script
@@ -39,17 +62,13 @@ FOR %%X IN (%*) DO (
 CALL :concat %%X %1 %2
 )
 
-set CLASSPATH=%CP%;%OLD_CLASSPATH%
-java %JAVA_OPTIONS% %JAVA_ARGS% org.apache.tinkerpop.gremlin.groovy.jsr223.ScriptExecutor %strg%
-set CLASSPATH=%OLD_CLASSPATH%
+java %JAVA_OPTIONS% %JAVA_ARGS% -cp %CP% org.apache.tinkerpop.gremlin.groovy.jsr223.ScriptExecutor %strg%
+
 goto :eof
 
 :version
+java %JAVA_OPTIONS% %JAVA_ARGS% -cp %CP% org.apache.tinkerpop.gremlin.util.Gremlin
 
-set CLASSPATH=%CP%;%OLD_CLASSPATH%
-java %JAVA_OPTIONS% %JAVA_ARGS% org.apache.tinkerpop.gremlin.util.Gremlin
-
-set CLASSPATH=%OLD_CLASSPATH%
 goto :eof
 
 :concat
